@@ -1,0 +1,14 @@
+{
+  "name": "contract-transfers",
+  "version": "1.0.0",
+  "main": "./src",
+  "repository": "git@github.com:ZhanaJikia/contract-transfers.git",
+  "author": "ZhanaJikia <zhana.jikia.1@btu.edu.ge>",
+  "license": "MIT",
+  "scripts": {
+    "start": "node ./src"
+  },
+  "dependencies": {
+    "web3": "^1.5.2"
+  }
+}
