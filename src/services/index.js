@@ -1,1 +1,1 @@
-exports.parseContractTransactionService = require('./parseContractTransactionService')
+module.exports.EthContractTransactionService = require('./ethContractTransactionService')
