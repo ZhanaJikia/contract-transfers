@@ -1,6 +1,9 @@
 require('dotenv').config()
 
-const { EthContractTransactionService } = require('./services')
+const { 
+  EthContractTransactionService,
+  ContractTransactionToCsvService
+} = require('./services')
 const { TRANSACTION_TYPES } = require('./consts')
 
 // Solbridge Ethereum: 0x6E405f9203a2D7f3e3bf38C332e7852D0ad76553
@@ -15,23 +18,23 @@ const { TRANSACTION_TYPES } = require('./consts')
     '0x6E405f9203a2D7f3e3bf38C332e7852D0ad76553'
   )
 
-  const sentTransactions = await contract.getTransactions(
+  await contract.transform(
     TRANSACTION_TYPES.sent
   )
-  const receivedTransactions = await contract.getTransactions(
+
+  let csv = new ContractTransactionToCsvService(contract)
+
+  csv.run('sent-transactions');
+
+  await contract.transform(
     TRANSACTION_TYPES.received
   )
+  
+  csv = new ContractTransactionToCsvService(contract)
 
-  /*
-    lockId
-    id
-    sender
-    recipient
-    amount
-  */
-  console.log(sentTransactions)
-  console.log(receivedTransactions)
+  csv.run('received-transactions');
 })()
+
 
 // Нам нужно написать скрипт, который бы вытаскивал информацию по отправленным и полученым транзакциям.
 // Т.е. в итоге, после того как скрипт выполнится, я ожидаю что у меня появится фаил, к примеру csv.
@@ -39,10 +42,10 @@ const { TRANSACTION_TYPES } = require('./consts')
 // Нужна следующая информация - lock_id (это внутрений id трансфера),
 // адрес отправителя (если это транзакция отправления),
 // адрес получателя,
-// сеть отправителя,
-// сеть получателя,
 // сумма,
-// токен который отправляется,
 // id транзакции,
 // время транзакции,
 // тип транзакции (отправка или получение)
+// сеть отправителя,
+// сеть получателя,
+// токен который отправляется,
