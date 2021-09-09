@@ -37,6 +37,7 @@ module.exports = class EthContractTransactionService {
 
   getRecipientAddress (recipient) {
     // For solana need something different
+    if (!recipient) return
     const truncString = recipient.substring(0, 42)
     const recipientHex = Web3.utils.toChecksumAddress(truncString)
     return recipientHex
@@ -53,15 +54,15 @@ module.exports = class EthContractTransactionService {
     const promises = transactions.map(transaction => {
 
       const tokenSource = transaction.returnValues.tokenSource
+      // const amountBN = this.Web3Client.utils.BN(parseInt(transaction.returnValues.amount))
       return this.Web3Client.eth.getBlock(transaction.blockNumber)
         .then(block => ({
-          blockNumber: block.blockNumber,
+          blockNumber: transaction.blockNumber,
           lockId: transaction.returnValues.lockId,
           sender: transaction.returnValues.sender || null,
           recipient: this.getRecipientAddress(transaction.returnValues.recipient) || null,
-          // fix recipient
           amount: transaction.returnValues.amount,
-          // use decimal token here for amount
+          // use decimal here for amount
           source: transaction.returnValues.source ? this.Web3Client.utils.hexToUtf8( transaction.returnValues.source ) : null,
           destination: transaction.returnValues.destination ? this.Web3Client.utils.hexToUtf8( transaction.returnValues.destination ) : null,
           tokenSource: tokenSource
