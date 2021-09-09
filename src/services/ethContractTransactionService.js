@@ -19,8 +19,10 @@ module.exports = class EthContractTransactionService {
 
   transactions = []
 
+
   constructor(contractAddress) {
     this.contractAddress = contractAddress
+    this.getRecipientAddress()
     this.web3Client()
     this.readContract()
   }
@@ -33,6 +35,13 @@ module.exports = class EthContractTransactionService {
     this.contract = new this.Web3Client.eth.Contract(abi, this.contractAddress)
   }
 
+  getRecipientAddress (recipient) {
+    // For solana need something different
+    const truncString = recipient.substring(0, 42)
+    const recipientHex = Web3.utils.toChecksumAddress(truncString)
+    return recipientHex
+  }
+
   /**
    * transform
    * @param {string} [type=Sent] - Sent or Received
@@ -42,17 +51,19 @@ module.exports = class EthContractTransactionService {
     const transactions = await this.contract.getPastEvents(type, this.options)
 
     const promises = transactions.map(transaction => {
+
       const tokenSource = transaction.returnValues.tokenSource
       return this.Web3Client.eth.getBlock(transaction.blockNumber)
         .then(block => ({
-          id: transaction.id,
+          blockNumber: block.blockNumber,
           lockId: transaction.returnValues.lockId,
           sender: transaction.returnValues.sender || null,
-          recipient: transaction.returnValues.recipient,
+          recipient: this.getRecipientAddress(transaction.returnValues.recipient) || null,
+          // fix recipient
           amount: transaction.returnValues.amount,
-          network: this.Web3Client.utils.hexToUtf8(
-            transaction.returnValues.source || transaction.returnValues.destination
-          ),
+          // use decimal token here for amount
+          source: transaction.returnValues.source ? this.Web3Client.utils.hexToUtf8( transaction.returnValues.source ) : null,
+          destination: transaction.returnValues.destination ? this.Web3Client.utils.hexToUtf8( transaction.returnValues.destination ) : null,
           tokenSource: tokenSource
             ? this.Web3Client.utils.hexToUtf8(tokenSource)
             : null,
