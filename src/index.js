@@ -21,31 +21,16 @@ const { TRANSACTION_TYPES } = require('./consts')
   await contract.transform(
     TRANSACTION_TYPES.sent
   )
-
+    
   let csv = new ContractTransactionToCsvService(contract)
 
   csv.run('sent-transactions');
-
+  
   await contract.transform(
     TRANSACTION_TYPES.received
   )
-  
+
   csv = new ContractTransactionToCsvService(contract)
 
   csv.run('received-transactions');
 })()
-
-
-// Нам нужно написать скрипт, который бы вытаскивал информацию по отправленным и полученым транзакциям.
-// Т.е. в итоге, после того как скрипт выполнится, я ожидаю что у меня появится фаил, к примеру csv.
-// В котором будет список всех трансферов.
-// Нужна следующая информация - lock_id (это внутрений id трансфера),
-// адрес отправителя (если это транзакция отправления),
-// адрес получателя,
-// сумма,
-// id транзакции,
-// время транзакции,
-// тип транзакции (отправка или получение)
-// сеть отправителя,
-// сеть получателя,
-// токен который отправляется,

@@ -19,10 +19,8 @@ module.exports = class EthContractTransactionService {
 
   transactions = []
 
-
   constructor(contractAddress) {
     this.contractAddress = contractAddress
-    this.getRecipientAddress()
     this.web3Client()
     this.readContract()
   }
@@ -35,14 +33,6 @@ module.exports = class EthContractTransactionService {
     this.contract = new this.Web3Client.eth.Contract(abi, this.contractAddress)
   }
 
-  getRecipientAddress (recipient) {
-    // For solana need something different
-    if (!recipient) return
-    const truncString = recipient.substring(0, 42)
-    const recipientHex = Web3.utils.toChecksumAddress(truncString)
-    return recipientHex
-  }
-
   /**
    * transform
    * @param {string} [type=Sent] - Sent or Received
@@ -51,28 +41,65 @@ module.exports = class EthContractTransactionService {
   async transform(type = 'Sent') {
     const transactions = await this.contract.getPastEvents(type, this.options)
 
-    const promises = transactions.map(transaction => {
-
-      const tokenSource = transaction.returnValues.tokenSource
-      // const amountBN = this.Web3Client.utils.BN(parseInt(transaction.returnValues.amount))
-      return this.Web3Client.eth.getBlock(transaction.blockNumber)
-        .then(block => ({
-          blockNumber: transaction.blockNumber,
-          lockId: transaction.returnValues.lockId,
-          sender: transaction.returnValues.sender || null,
-          recipient: this.getRecipientAddress(transaction.returnValues.recipient) || null,
-          amount: transaction.returnValues.amount,
-          // use decimal here for amount
-          source: transaction.returnValues.source ? this.Web3Client.utils.hexToUtf8( transaction.returnValues.source ) : null,
-          destination: transaction.returnValues.destination ? this.Web3Client.utils.hexToUtf8( transaction.returnValues.destination ) : null,
-          tokenSource: tokenSource
-            ? this.Web3Client.utils.hexToUtf8(tokenSource)
-            : null,
-          date: format(new Date(block.timestamp * 1000), 'yyyy-mm-dd hh:mm:ss'),
+    const promises = transactions.map(({ returnValues: {
+      lockId,
+      sender,
+      recipient,
+      amount,
+      source,
+      destination,
+      tokenSourceAddress,
+      tokenSource
+    }, blockNumber }) =>  this.Web3Client.eth.getBlock(blockNumber)
+        .then(({ timestamp }) => ({
+          blockNumber,
+          lockId,
+          ...this.getSender(sender),
+          ...this.getRecipient(recipient),
+          ...this.getAmount(amount),
+          ...this.getSource(source),
+          ...this.getDestination(destination),
+          ...this.getTokenSource(tokenSource, tokenSourceAddress),
+          ...this.getDate(timestamp),
           type
         }))
-    })
+    )
 
     this.transactions = await Promise.all(promises)
+  }
+
+  getSender (sender) {  
+    return sender ? { sender } : null
+  }
+
+  getRecipient (recipient) {
+    return recipient ? { recipient: recipient.substring(0, 42) } : null
+  }
+
+  async getAmount (amount) {
+    return { amount }
+  }
+
+  getSource (source) {
+    return  source ? { source: this.Web3Client.utils.hexToUtf8(source) } : null
+  }
+
+  getDestination (destination) {
+    return destination ? { destination: this.Web3Client.utils.hexToUtf8(destination) } : null
+  }
+
+  getTokenSource (tokenSource, tokenSourceAddress) {
+    if(!tokenSource || !tokenSourceAddress) return null
+
+    return { 
+      tokenSource: [
+        this.Web3Client.utils.hexToUtf8(tokenSource),
+        tokenSourceAddress.substring(0, 42)
+      ]
+    }
+  }
+
+  getDate (timestamp) {
+    return { date: format(new Date(timestamp * 1000), 'yyyy-mm-dd hh:mm:ss') }
   }
 }
