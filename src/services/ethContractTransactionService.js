@@ -21,6 +21,7 @@ module.exports = class EthContractTransactionService {
 
   constructor(contractAddress) {
     this.contractAddress = contractAddress
+    
     this.web3Client()
     this.readContract()
   }
@@ -41,31 +42,38 @@ module.exports = class EthContractTransactionService {
   async transform(type = 'Sent') {
     const transactions = await this.contract.getPastEvents(type, this.options)
 
-    const promises = transactions.map(({ returnValues: {
+    const trx = []
+    
+    for await (let { returnValues: {
       lockId,
       sender,
       recipient,
+      token,
       amount,
       source,
       destination,
       tokenSourceAddress,
       tokenSource
-    }, blockNumber }) =>  this.Web3Client.eth.getBlock(blockNumber)
-        .then(({ timestamp }) => ({
-          blockNumber,
-          lockId,
-          ...this.getSender(sender),
-          ...this.getRecipient(recipient),
-          ...this.getAmount(amount),
-          ...this.getSource(source),
-          ...this.getDestination(destination),
-          ...this.getTokenSource(tokenSource, tokenSourceAddress),
-          ...this.getDate(timestamp),
-          type
-        }))
-    )
+    }, blockNumber } of transactions) {
+      const doAsync = async () => ({
+        blockNumber,
+        lockId,
+        ...this.getSender(sender),
+        ...this.getRecipient(recipient),
+        ...await this.getAmount(amount, token || tokenSourceAddress),
+        ...this.getSource(source),
+        ...this.getDestination(destination),
+        ...this.getTokenSource(tokenSource, tokenSourceAddress),
+        ...this.getDate(
+          await this.Web3Client.eth.getBlock(blockNumber)
+        ),
+        type
+      })
 
-    this.transactions = await Promise.all(promises)
+      trx.push(doAsync())
+    }
+    
+    this.transactions =  await Promise.all(trx)
   }
 
   getSender (sender) {  
@@ -73,11 +81,15 @@ module.exports = class EthContractTransactionService {
   }
 
   getRecipient (recipient) {
-    return recipient ? { recipient: recipient.substring(0, 42) } : null
+    return recipient ? { recipient: this.normalizeToken(recipient) } : null
   }
 
-  async getAmount (amount) {
-    return { amount }
+  async getAmount (amount, token) {
+    const { precision } = await this.contract.methods.tokenInfos(
+      this.normalizeToken(token)
+    ).call()
+
+    return { amount: amount / (10 ** precision) }
   }
 
   getSource (source) {
@@ -94,12 +106,16 @@ module.exports = class EthContractTransactionService {
     return { 
       tokenSource: [
         this.Web3Client.utils.hexToUtf8(tokenSource),
-        tokenSourceAddress.substring(0, 42)
+        this.normalizeToken(tokenSourceAddress)
       ]
     }
   }
 
-  getDate (timestamp) {
+  getDate ({ timestamp }) {
     return { date: format(new Date(timestamp * 1000), 'yyyy-mm-dd hh:mm:ss') }
+  }
+
+  normalizeToken (token) {
+    return token?.substring(0, 42)
   }
 }

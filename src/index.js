@@ -21,7 +21,7 @@ const { TRANSACTION_TYPES } = require('./consts')
   await contract.transform(
     TRANSACTION_TYPES.sent
   )
-    
+
   let csv = new ContractTransactionToCsvService(contract)
 
   csv.run('sent-transactions');
