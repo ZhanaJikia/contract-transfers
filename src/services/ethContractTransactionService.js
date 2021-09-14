@@ -1,15 +1,16 @@
 const Web3 = require('web3')
-const { format } = require('date-fns')
+const format = require('date-fns/format')
 
 const abi = require('../abi/allbridge')
 
+
 module.exports = class EthContractTransactionService {
-  provider = process.env.PROVIDER
 
+  contractObj = {}
   contractAddress = ''
-
+  symbol = ''
+  provider = null
   Web3Client = null
-
   contract = null
 
   options = {
@@ -19,9 +20,13 @@ module.exports = class EthContractTransactionService {
 
   transactions = []
 
-  constructor(contractAddress) {
-    this.contractAddress = contractAddress
-    
+  tokenBank = []
+
+  constructor(contractObj) {
+    this.symbol = contractObj.symbol
+    this.contractAddress = contractObj.contractAddress
+    this.provider = contractObj.provider
+
     this.web3Client()
     this.readContract()
   }
@@ -32,6 +37,10 @@ module.exports = class EthContractTransactionService {
 
   readContract() {
     this.contract = new this.Web3Client.eth.Contract(abi, this.contractAddress)
+  }
+
+  setTokenBank(tokenBank) {
+    this.tokenBank = tokenBank[this.symbol].tokens
   }
 
   /**
@@ -60,11 +69,11 @@ module.exports = class EthContractTransactionService {
         lockId,
         ...this.getSender(sender),
         ...this.getRecipient(recipient),
-        ...await this.getAmount(amount, token || tokenSourceAddress),
+        amount: this.getAmount(amount, token || tokenSourceAddress),
         ...this.getSource(source),
         ...this.getDestination(destination),
         ...this.getTokenSource(tokenSource, tokenSourceAddress),
-        ...this.getDate(
+        date: this.getDate(
           await this.Web3Client.eth.getBlock(blockNumber)
         ),
         type
@@ -84,12 +93,19 @@ module.exports = class EthContractTransactionService {
     return recipient ? { recipient: this.normalizeToken(recipient) } : null
   }
 
-  async getAmount (amount, token) {
-    const { precision } = await this.contract.methods.tokenInfos(
+  getAmount (amount, token) {
+    const { precision } = this.getPrecision(
       this.normalizeToken(token)
-    ).call()
+    )
+    //TODO: should make with big js not simple math
+    return amount / (10 ** precision)
+  }
 
-    return { amount: amount / (10 ** precision) }
+  getPrecision (token) {
+    return this.tokenBank.find(({address, tokenSourceAddress}) =>
+      this.normalizeToken(address) === token ||
+      this.normalizeToken(tokenSourceAddress) === token
+    )
   }
 
   getSource (source) {
@@ -112,10 +128,11 @@ module.exports = class EthContractTransactionService {
   }
 
   getDate ({ timestamp }) {
-    return { date: format(new Date(timestamp * 1000), 'yyyy-mm-dd hh:mm:ss') }
+    return format(new Date(timestamp * 1000), 'dd/MM/yyyy mm:ss')
   }
 
   normalizeToken (token) {
+    //TODO: should work not only for ethereum
     return token?.substring(0, 42)
   }
 }

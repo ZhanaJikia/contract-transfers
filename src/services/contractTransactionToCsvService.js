@@ -1,4 +1,4 @@
-const ObjectsToCsv = require('objects-to-csv');
+const ObjectsToCsv = require('objects-to-csv')
 
 module.exports = class ContractTransactionToCsvService {
   contract
@@ -8,10 +8,10 @@ module.exports = class ContractTransactionToCsvService {
   }
 
   run(filename = 'transactions', dist = './dist') {
-    const csv = new ObjectsToCsv(this.contract.transactions);
+    const csv = new ObjectsToCsv(this.contract.transactions)
     
     const file = `${dist}/${filename}.csv`
 
-    csv.toDisk(file);
+    csv.toDisk(file)
   }
 }
